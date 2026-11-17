@@ -1,0 +1,181 @@
+{
+  "entities": {
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "Per-user safety and language preferences for Sahayak.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "languageMode": { "type": "string", "enum": ["en", "bn_en"], "description": "Preferred reply language mode." },
+        "strictApprovalMode": { "type": "boolean", "description": "Whether final actions always require explicit user confirmation." },
+        "seededDefaults": { "type": "boolean", "description": "Whether initial starter records have been created." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "languageMode", "strictApprovalMode", "seededDefaults", "createdAt", "updatedAt"]
+    },
+    "VaultField": {
+      "title": "VaultField",
+      "description": "Reusable personal field stored in the user's Personal Vault with per-field AI consent.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fieldKey": { "type": "string" },
+        "label": { "type": "string" },
+        "value": { "type": "string" },
+        "isSensitive": { "type": "boolean" },
+        "allowAutoFill": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "fieldKey", "label", "value", "isSensitive", "allowAutoFill", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Conversational message or interactive workflow card in Doer Chat.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "sender": { "type": "string", "enum": ["user", "assistant", "system"] },
+        "text": { "type": "string" },
+        "attachmentLabel": { "type": "string" },
+        "stepState": { "type": "string" },
+        "cardType": { "type": "string", "enum": ["NONE", "APPROVAL", "OTP", "RECEIPT", "CLARIFICATION"] },
+        "actionType": { "type": "string" },
+        "portalTitle": { "type": "string" },
+        "draftFields": { "type": "object" },
+        "maskedKeys": { "type": "array" },
+        "requiresOtp": { "type": "boolean" },
+        "referenceId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "approved", "completed", "cancelled", "error"] },
+        "clientTimestampMs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "sender", "text", "attachmentLabel", "stepState", "cardType", "actionType", "portalTitle", "draftFields", "maskedKeys", "requiresOtp", "referenceId", "status", "clientTimestampMs", "createdAt", "updatedAt"]
+    },
+    "UtilityBill": {
+      "title": "UtilityBill",
+      "description": "Logged utility bill and expense record with month-over-month comparison.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "provider": { "type": "string" },
+        "accountNo": { "type": "string" },
+        "billingMonth": { "type": "string" },
+        "unitsKwh": { "type": "number" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "previousAmount": { "type": "number" },
+        "comparisonNote": { "type": "string" },
+        "status": { "type": "string", "enum": ["Paid", "Logged", "Due"] },
+        "referenceId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "provider", "accountNo", "billingMonth", "unitsKwh", "amount", "currency", "dueDate", "previousAmount", "comparisonNote", "status", "referenceId", "createdAt", "updatedAt"]
+    },
+    "AppointmentBooking": {
+      "title": "AppointmentBooking",
+      "description": "Confirmed or rescheduled appointment record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "doctorOrOffice": { "type": "string" },
+        "department": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "patientName": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["Confirmed", "Rescheduled", "Cancelled"] },
+        "referenceId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "doctorOrOffice", "department", "date", "time", "patientName", "notes", "status", "referenceId", "createdAt", "updatedAt"]
+    },
+    "ShopTransaction": {
+      "title": "ShopTransaction",
+      "description": "Small-shop sale, expense, or restock entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "txType": { "type": "string", "enum": ["SALE", "EXPENSE", "RESTOCK"] },
+        "itemsSummary": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "currency": { "type": "string" },
+        "notes": { "type": "string" },
+        "referenceId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "txType", "itemsSummary", "totalAmount", "currency", "notes", "referenceId", "createdAt", "updatedAt"]
+    },
+    "ShopInventoryItem": {
+      "title": "ShopInventoryItem",
+      "description": "Small-shop stock item with low-stock threshold.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "unit": { "type": "string" },
+        "lowStockThreshold": { "type": "integer" },
+        "unitPrice": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "itemName", "quantity", "unit", "lowStockThreshold", "unitPrice", "createdAt", "updatedAt"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Immutable safety and tool-execution audit log entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "eventType": { "type": "string" },
+        "title": { "type": "string" },
+        "details": { "type": "string" },
+        "vaultFieldsAccessed": { "type": "array" },
+        "referenceId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "eventType", "title", "details", "vaultFieldsAccessed", "referenceId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "Per-user safety and language preferences."
+    },
+    "/users/{userId}/vault/{fieldId}": {
+      "schema": { "$ref": "#/entities/VaultField" },
+      "description": "Personal Vault fields with reveal/mask and AI auto-fill consent."
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Doer Chat conversation messages and interactive approval/OTP/receipt cards."
+    },
+    "/users/{userId}/bills/{billId}": {
+      "schema": { "$ref": "#/entities/UtilityBill" },
+      "description": "Utility bills and expense records."
+    },
+    "/users/{userId}/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/AppointmentBooking" },
+      "description": "Appointments schedule."
+    },
+    "/users/{userId}/shop_transactions/{txId}": {
+      "schema": { "$ref": "#/entities/ShopTransaction" },
+      "description": "Small-shop sales and expense cashbook."
+    },
+    "/users/{userId}/shop_inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/ShopInventoryItem" },
+      "description": "Small-shop inventory items and stock alerts."
+    },
+    "/users/{userId}/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogEntry" },
+      "description": "Append-only safety and tool execution audit log."
+    }
+  }
+}

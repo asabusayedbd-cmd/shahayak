@@ -1,0 +1,258 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny all access unless explicitly matched
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidUserSettings(data, userId) {
+      return data.userId == userId &&
+        data.languageMode in ['en', 'bn_en'] &&
+        data.strictApprovalMode is bool &&
+        data.seededDefaults is bool;
+    }
+
+    function isValidVaultField(data, userId) {
+      return data.userId == userId &&
+        data.fieldKey is string && data.fieldKey.size() >= 1 && data.fieldKey.size() <= 50 &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 80 &&
+        data.value is string && data.value.size() <= 400 &&
+        data.isSensitive is bool &&
+        data.allowAutoFill is bool;
+    }
+
+    function isValidChatMessage(data, userId) {
+      return data.userId == userId &&
+        data.sender in ['user', 'assistant', 'system'] &&
+        data.text is string && data.text.size() <= 6000 &&
+        data.attachmentLabel is string && data.attachmentLabel.size() <= 200 &&
+        data.stepState is string && data.stepState.size() >= 1 && data.stepState.size() <= 40 &&
+        data.cardType in ['NONE', 'APPROVAL', 'OTP', 'RECEIPT', 'CLARIFICATION'] &&
+        data.actionType is string && data.actionType.size() <= 50 &&
+        data.portalTitle is string && data.portalTitle.size() <= 120 &&
+        data.draftFields is map && data.draftFields.size() <= 20 &&
+        data.maskedKeys is list && data.maskedKeys.size() <= 15 &&
+        (data.maskedKeys.size() == 0 || data.maskedKeys[0] is string) &&
+        data.requiresOtp is bool &&
+        data.referenceId is string && data.referenceId.size() <= 80 &&
+        data.status in ['active', 'approved', 'completed', 'cancelled', 'error'] &&
+        data.clientTimestampMs is int && data.clientTimestampMs >= 0;
+    }
+
+    function isValidUtilityBill(data, userId) {
+      return data.userId == userId &&
+        data.provider is string && data.provider.size() >= 1 && data.provider.size() <= 120 &&
+        data.accountNo is string && data.accountNo.size() <= 80 &&
+        data.billingMonth is string && data.billingMonth.size() >= 1 && data.billingMonth.size() <= 60 &&
+        data.unitsKwh is number && data.unitsKwh >= 0 &&
+        data.amount is number && data.amount >= 0 &&
+        data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 12 &&
+        data.dueDate is string && data.dueDate.size() <= 40 &&
+        data.previousAmount is number && data.previousAmount >= 0 &&
+        data.comparisonNote is string && data.comparisonNote.size() <= 240 &&
+        data.status in ['Paid', 'Logged', 'Due'] &&
+        data.referenceId is string && data.referenceId.size() <= 80;
+    }
+
+    function isValidAppointment(data, userId) {
+      return data.userId == userId &&
+        data.doctorOrOffice is string && data.doctorOrOffice.size() >= 1 && data.doctorOrOffice.size() <= 140 &&
+        data.department is string && data.department.size() <= 100 &&
+        data.date is string && data.date.size() >= 1 && data.date.size() <= 40 &&
+        data.time is string && data.time.size() >= 1 && data.time.size() <= 40 &&
+        data.patientName is string && data.patientName.size() <= 120 &&
+        data.notes is string && data.notes.size() <= 400 &&
+        data.status in ['Confirmed', 'Rescheduled', 'Cancelled'] &&
+        data.referenceId is string && data.referenceId.size() <= 80;
+    }
+
+    function isValidShopTransaction(data, userId) {
+      return data.userId == userId &&
+        data.txType in ['SALE', 'EXPENSE', 'RESTOCK'] &&
+        data.itemsSummary is string && data.itemsSummary.size() >= 1 && data.itemsSummary.size() <= 400 &&
+        data.totalAmount is number && data.totalAmount >= 0 &&
+        data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 12 &&
+        data.notes is string && data.notes.size() <= 300 &&
+        data.referenceId is string && data.referenceId.size() <= 80;
+    }
+
+    function isValidShopInventoryItem(data, userId) {
+      return data.userId == userId &&
+        data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 120 &&
+        data.quantity is int && data.quantity >= 0 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24 &&
+        data.lowStockThreshold is int && data.lowStockThreshold >= 0 &&
+        data.unitPrice is number && data.unitPrice >= 0;
+    }
+
+    function isValidAuditLogEntry(data, userId) {
+      return data.userId == userId &&
+        data.eventType is string && data.eventType.size() >= 1 && data.eventType.size() <= 60 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.details is string && data.details.size() <= 600 &&
+        data.vaultFieldsAccessed is list && data.vaultFieldsAccessed.size() <= 15 &&
+        (data.vaultFieldsAccessed.size() == 0 || data.vaultFieldsAccessed[0] is string) &&
+        data.referenceId is string && data.referenceId.size() <= 80;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidId(userId) &&
+        incoming().keys().hasAll(['userId', 'languageMode', 'strictApprovalMode', 'seededDefaults', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'languageMode', 'strictApprovalMode', 'seededDefaults', 'createdAt', 'updatedAt']) &&
+        isValidTimestamp(incoming().createdAt) &&
+        isValidTimestamp(incoming().updatedAt) &&
+        isValidUserSettings(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) &&
+        isValidUserSettings(incoming(), userId) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        isValidTimestamp(incoming().updatedAt) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['languageMode', 'strictApprovalMode', 'seededDefaults', 'updatedAt']);
+      allow delete: if false;
+
+      match /vault/{fieldId} {
+        allow get: if isOwner(userId) && isValidId(fieldId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(fieldId) &&
+          incoming().keys().hasAll(['userId', 'fieldKey', 'label', 'value', 'isSensitive', 'allowAutoFill', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'fieldKey', 'label', 'value', 'isSensitive', 'allowAutoFill', 'createdAt', 'updatedAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidVaultField(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(fieldId) &&
+          isValidVaultField(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().fieldKey == existing().fieldKey &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['label', 'value', 'isSensitive', 'allowAutoFill', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(fieldId);
+      }
+
+      match /messages/{messageId} {
+        allow get: if isOwner(userId) && isValidId(messageId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(messageId) &&
+          incoming().keys().hasAll(['userId', 'sender', 'text', 'attachmentLabel', 'stepState', 'cardType', 'actionType', 'portalTitle', 'draftFields', 'maskedKeys', 'requiresOtp', 'referenceId', 'status', 'clientTimestampMs', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'sender', 'text', 'attachmentLabel', 'stepState', 'cardType', 'actionType', 'portalTitle', 'draftFields', 'maskedKeys', 'requiresOtp', 'referenceId', 'status', 'clientTimestampMs', 'createdAt', 'updatedAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidChatMessage(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(messageId) &&
+          isValidChatMessage(incoming(), userId) &&
+          existing().status in ['active', 'approved'] &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['text', 'stepState', 'cardType', 'draftFields', 'referenceId', 'status', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(messageId);
+      }
+
+      match /bills/{billId} {
+        allow get: if isOwner(userId) && isValidId(billId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(billId) &&
+          incoming().keys().hasAll(['userId', 'provider', 'accountNo', 'billingMonth', 'unitsKwh', 'amount', 'currency', 'dueDate', 'previousAmount', 'comparisonNote', 'status', 'referenceId', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'provider', 'accountNo', 'billingMonth', 'unitsKwh', 'amount', 'currency', 'dueDate', 'previousAmount', 'comparisonNote', 'status', 'referenceId', 'createdAt', 'updatedAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidUtilityBill(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(billId) &&
+          isValidUtilityBill(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'comparisonNote', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(billId);
+      }
+
+      match /appointments/{appointmentId} {
+        allow get: if isOwner(userId) && isValidId(appointmentId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(appointmentId) &&
+          incoming().keys().hasAll(['userId', 'doctorOrOffice', 'department', 'date', 'time', 'patientName', 'notes', 'status', 'referenceId', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'doctorOrOffice', 'department', 'date', 'time', 'patientName', 'notes', 'status', 'referenceId', 'createdAt', 'updatedAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidAppointment(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(appointmentId) &&
+          isValidAppointment(incoming(), userId) &&
+          existing().status != 'Cancelled' &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['date', 'time', 'notes', 'status', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(appointmentId);
+      }
+
+      match /shop_transactions/{txId} {
+        allow get: if isOwner(userId) && isValidId(txId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(txId) &&
+          incoming().keys().hasAll(['userId', 'txType', 'itemsSummary', 'totalAmount', 'currency', 'notes', 'referenceId', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'txType', 'itemsSummary', 'totalAmount', 'currency', 'notes', 'referenceId', 'createdAt', 'updatedAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidShopTransaction(incoming(), userId);
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(txId);
+      }
+
+      match /shop_inventory/{itemId} {
+        allow get: if isOwner(userId) && isValidId(itemId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(itemId) &&
+          incoming().keys().hasAll(['userId', 'itemName', 'quantity', 'unit', 'lowStockThreshold', 'unitPrice', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'itemName', 'quantity', 'unit', 'lowStockThreshold', 'unitPrice', 'createdAt', 'updatedAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidShopInventoryItem(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(itemId) &&
+          isValidShopInventoryItem(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['itemName', 'quantity', 'unit', 'lowStockThreshold', 'unitPrice', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(itemId);
+      }
+
+      match /audit_logs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(logId) &&
+          incoming().keys().hasAll(['userId', 'eventType', 'title', 'details', 'vaultFieldsAccessed', 'referenceId', 'createdAt']) &&
+          incoming().keys().hasOnly(['userId', 'eventType', 'title', 'details', 'vaultFieldsAccessed', 'referenceId', 'createdAt']) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidAuditLogEntry(incoming(), userId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

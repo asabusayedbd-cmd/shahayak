@@ -1,0 +1,6 @@
+{
+  "name": "Sahayak",
+  "description": "A practical everyday agentic AI doer for bills, appointments, shop ledgers, and form-filling with human-in-the-loop approvals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
