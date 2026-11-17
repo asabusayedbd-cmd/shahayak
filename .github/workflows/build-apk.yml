@@ -41,6 +41,33 @@ jobs:
         with:
           gradle-version: ${{ steps.detect-gradle.outputs.gradle_ver }}
 
+      - name: Prepare debug keystore and Firebase config
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          if [ ! -f "app/google-services.json" ]; then
+            if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+              printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+              echo "Created app/google-services.json from GitHub Secret."
+            else
+              echo "WARNING: app/google-services.json not found! Creating fallback resource for compilation."
+              mkdir -p app/src/main/res/values
+              printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="default_web_client_id" translatable="false">placeholder-client-id.apps.googleusercontent.com</string>\n</resources>\n' > app/src/main/res/values/fallback_google_services.xml
+            fi
+          fi
+
       - name: Build Debug APK
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
